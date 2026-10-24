@@ -1,0 +1,17 @@
+{
+  "name": "yj_island",
+  "version": "1.0.0",
+  "description": "Taichi's Personal 3D Interactive Island Portfolio",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
