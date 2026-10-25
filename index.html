@@ -3,60 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>TAICHI ISLAND ｜ 泰奇數位浮島・個人作品與心流聚落</title>
-  <meta name="description" content="Taichi (YJ) 的個人 3D 互動作品集網站。整合 GitHub 開發專案（Swift、Rust、GIS、Python）、個人興趣（茶道、3D列印/雷雕/手繪、攝影、AI與資安）及社群連結。">
-  <meta name="keywords" content="Taichi, Portfolio, 3D Island, Three.js, GitHub, Swift, Rust, Tea Ceremony, Maker, Photography, AI, Cybersecurity">
+  <title>TAICHI ISLAND ｜ 泰奇數位微縮島・個人作品與心流群島</title>
+  <meta name="description" content="Taichi (YJ) 的個人 3D 互動微縮作品集。融合 Swift / Rust / Python / GIS 軟體專案、茶道禪境、創客藝術工坊（3D列印/雷雕/手繪）、攝影光影與 AI/資安防禦網。">
   
-  <!-- Open Graph -->
-  <meta property="og:title" content="TAICHI ISLAND ｜ 泰奇數位浮島・個人作品與心流聚落">
-  <meta property="og:description" content="探索 3D 浮島世界：GitHub 開發軟體、生活藝術與社群矩陣。">
+  <meta property="og:title" content="TAICHI ISLAND ｜ 泰奇數位微縮島">
+  <meta property="og:description" content="一格專案，一座相連的心流島嶼。探索 3D 浮島世界：GitHub 開發軟體、生活藝術與社群信標。">
   <meta property="og:type" content="website">
 
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
   <div id="app">
-    <!-- 3D WebGL Canvas Container -->
-    <div id="stage" role="img" aria-label="3D 浮島群互動展示場景"></div>
+    <!-- 3D WebGL Canvas & CSS2D Stage -->
+    <div id="stage" role="img" aria-label="3D 微縮浮島群互動展示場景"></div>
 
     <!-- Loading Screen -->
     <div id="loading" class="loading">
-      <div class="spinner"></div>
-      <h2>YJ ISLAND</h2>
-      <p>正在構建 3D 數位浮島群與晨昏光影…</p>
+      <div class="loading-box">
+        <div class="loading-spinner"></div>
+        <h2>TAICHI ISLAND</h2>
+        <p>正在組合數位微縮聚落與水波光影…</p>
+      </div>
     </div>
 
     <!-- Brand Header -->
     <header class="brand-header">
       <img src="https://avatars.githubusercontent.com/u/127074520?v=4" alt="Taichi Avatar" class="brand-avatar">
       <div class="brand-info">
-        <h1>Taichi (YJ) <span class="brand-tag">PORTFOLIO</span></h1>
-        <p>軟體開發者 · 藝術創客 · 數位漫遊者</p>
+        <h1>Taichi (YJ) <span class="brand-badge">ARCHIPELAGO</span></h1>
+        <p>軟體工程師 · 藝術創客 · 數位漫遊者</p>
       </div>
     </header>
 
     <!-- Top Right Actions -->
     <div class="top-toolbar">
       <button id="sidebar-toggle" class="tool-btn" aria-label="展開內容清單">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         <span>內容清單</span>
       </button>
-      <button id="help" class="tool-btn icon-only" aria-label="導覽操作說明" title="操作說明">?</button>
+      <button id="help" class="tool-btn icon-only" aria-label="操作說明" title="操作說明">?</button>
     </div>
 
     <!-- Bottom Mascot / Tip -->
-    <div class="hint-badge">
-      <div class="hint-dot"></div>
-      <span>拖曳滑鼠 360° 旋轉視角 · 點擊島嶼探索內容</span>
+    <div class="mascot-hint">
+      <span class="mascot-face">•ᴗ•</span>
+      <span>拖曳旋轉視角 · 點選島上名牌走進專屬風景</span>
     </div>
 
     <!-- Day / Night Time HUD -->
-    <section class="time-hud" aria-label="時段與晝夜切換">
+    <section class="time-hud" aria-label="時段光影切換">
       <div class="time-presets" role="group">
-        <button class="time-btn" data-time="360" title="清晨 06:00">🌅 清晨</button>
-        <button class="time-btn active" data-time="720" title="白天 12:00">☀️ 白天</button>
-        <button class="time-btn" data-time="1080" title="黃昏 18:00">🌇 黃昏</button>
-        <button class="time-btn" data-time="1260" title="夜晚 21:00">🌌 夜晚</button>
+        <button class="time-btn" data-time="360" title="清晨 06:00">清晨</button>
+        <button class="time-btn active" data-time="720" title="白天 12:00">白天</button>
+        <button class="time-btn" data-time="1080" title="黃昏 18:00">黃昏</button>
+        <button class="time-btn" data-time="1260" title="夜晚 21:00">夜晚</button>
       </div>
       <div class="time-slider-wrap">
         <button id="day-play" class="play-btn" title="循環播放晝夜">▶</button>
@@ -66,51 +66,47 @@
     </section>
 
     <!-- Bottom Navigation Dock -->
-    <nav class="dock" aria-label="快速導覽群島">
+    <nav class="dock" aria-label="快速前往主題島">
       <button class="dock-btn active" data-dock="overview">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 11 11 5M6 5h5v5"/></svg>
         全景
       </button>
       <button class="dock-btn" data-dock="dev">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-        開發島
+        <span style="color:var(--coral); font-weight:700;">01</span> 開發島
       </button>
       <button class="dock-btn" data-dock="zen">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
-        藝境島
+        <span style="color:var(--green); font-weight:700;">02</span> 藝境島
       </button>
       <button class="dock-btn" data-dock="beacon">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-        燈塔島
+        <span style="color:var(--coral); font-weight:700;">03</span> 燈塔島
       </button>
       <button class="dock-btn" data-dock="bird">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
         鳥瞰
       </button>
     </nav>
 
-    <!-- Sidebar Drawer (Inspired by Policy Island Index) -->
+    <!-- Sidebar Drawer (Warm Editorial Index) -->
     <aside id="sidebar" class="sidebar" aria-label="全站導覽與作品索引">
       <div class="side-header">
         <div class="side-top-row">
-          <span class="side-eyebrow">PORTFOLIO INDEX</span>
+          <span class="side-eyebrow">THE DIGITAL ARCHIPELAGO</span>
           <button id="sidebar-close" class="close-btn" aria-label="關閉清單">✕</button>
         </div>
-        <h2>數位聚落索引</h2>
-        <p>跨界程式實踐、創客藝術工坊與社交信標連結。</p>
-        <input id="search" class="search-input" type="search" placeholder="搜尋專案、語言、興趣關鍵字…">
+        <h2>把熱忱，連起來。</h2>
+        <p>3 大主題島嶼 ／ 8 項軟體專案 ／ 5 項生活創作。<br>選一項作品，走進它的微縮風景。</p>
+        <input id="search" class="search-input" type="search" placeholder="搜尋專案、語言、技術或興趣…">
         <div class="side-tabs">
-          <button class="active" data-filter="all">全部</button>
-          <button data-filter="projects">GitHub 專案</button>
-          <button data-filter="interests">個人興趣</button>
-          <button data-filter="social">社群連結</button>
+          <button class="active" data-filter="all">全部索引</button>
+          <button data-filter="projects">軟體專案</button>
+          <button data-filter="interests">生活創作</button>
+          <button data-filter="social">社群信標</button>
         </div>
       </div>
       <div id="tree" class="side-body"></div>
     </aside>
 
-    <!-- Floating Item Detail Card (Triggered by 3D click or sidebar) -->
-    <article id="card" class="floating-card" aria-label="項目詳細資料">
+    <!-- Floating Item Detail Card -->
+    <article id="card" class="floating-card" aria-label="選取項目詳細資料">
       <button id="card-close" class="close-btn" style="position:absolute; top:1rem; right:1rem;" aria-label="關閉卡片">✕</button>
       <div id="card-content"></div>
     </article>
@@ -119,26 +115,26 @@
     <div id="help-modal" class="modal-overlay">
       <div class="modal-content">
         <h3>島嶼探索指南</h3>
-        <p>歡迎來到 Taichi 的 3D 數位浮島世界，您可以透過以下方式自由漫遊：</p>
+        <p>歡迎來到 Taichi 的 3D 微縮群島。您可以透過以下方式自由漫遊：</p>
         <div class="help-grid">
           <div class="help-item">
-            <span class="help-badge">左鍵拖曳</span>
-            <span>360° 旋轉視角環視島嶼</span>
+            <span class="help-badge">滑鼠拖曳</span>
+            <span>360° 旋轉視角環視微縮建築</span>
           </div>
           <div class="help-item">
             <span class="help-badge">滾輪縮放</span>
-            <span>放大細看建築或拉遠縱覽全局</span>
+            <span>放大細看小島屋舍，或拉遠俯瞰全景</span>
           </div>
           <div class="help-item">
-            <span class="help-badge">點擊建築</span>
-            <span>鏡頭自動平滑推近並展開詳細資訊卡</span>
+            <span class="help-badge">點選名牌</span>
+            <span>鏡頭自動平滑推近，並滑出詳細資訊卡</span>
           </div>
           <div class="help-item">
             <span class="help-badge">時段按鈕</span>
-            <span>切換清晨、白天、黃昏與夜景光影</span>
+            <span>即時體驗晨曦、日晝、夕照與夜空光影</span>
           </div>
         </div>
-        <button id="help-close" class="btn-primary">開始探索！</button>
+        <button id="help-close" class="btn-primary">開始漫遊！</button>
       </div>
     </div>
   </div>

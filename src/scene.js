@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { IslandBuilder } from './islands.js';
 import { DayNightSystem } from './daynight.js';
+import { PeopleManager } from './people.js';
 
 export class AppScene {
   constructor(canvasContainer, onSelectObject) {
@@ -10,6 +12,7 @@ export class AppScene {
 
     this.initThree();
     this.initWorld();
+    this.initLabels();
     this.initInteraction();
     this.animate();
 
@@ -19,37 +22,44 @@ export class AppScene {
   initThree() {
     this.scene = new THREE.Scene();
 
-    // Camera setup
-    this.camera = new THREE.PerspectiveCamera(
-      45,
-      this.container.clientWidth / this.container.clientHeight,
-      0.1,
-      500
-    );
-    this.overviewPos = new THREE.Vector3(0, 36, 52);
-    this.overviewTarget = new THREE.Vector3(0, 2, 0);
+    // Telephoto miniature FOV (32 deg) matching HEART policy island
+    const aspect = this.container.clientWidth / this.container.clientHeight;
+    this.camera = new THREE.PerspectiveCamera(32, aspect, 0.5, 350);
+    this.overviewPos = new THREE.Vector3(0, 24, 34);
+    this.overviewTarget = new THREE.Vector3(0, 1.2, -1.5);
     this.camera.position.copy(this.overviewPos);
 
-    // Renderer setup
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    // WebGL Renderer
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.0;
     this.container.appendChild(this.renderer.domElement);
+
+    // CSS2D Label Renderer
+    this.labelRenderer = new CSS2DRenderer();
+    this.labelRenderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.labelRenderer.domElement.id = 'labels';
+    this.container.appendChild(this.labelRenderer.domElement);
 
     // Orbit Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.05;
-    this.controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below horizon
+    this.controls.dampingFactor = 0.07;
+    this.controls.minPolarAngle = THREE.MathUtils.degToRad(25);
+    this.controls.maxPolarAngle = THREE.MathUtils.degToRad(72);
     this.controls.minDistance = 10;
-    this.controls.maxDistance = 140;
+    this.controls.maxDistance = 60;
     this.controls.target.copy(this.overviewTarget);
 
-    // Target positions for camera animations
     this.targetCameraPos = null;
     this.targetControlsTarget = null;
     this.isCameraAnimating = false;
@@ -60,12 +70,74 @@ export class AppScene {
     this.islandBuilder = new IslandBuilder(this.scene);
     this.worldGroup = this.islandBuilder.buildWorld();
     this.scene.add(this.worldGroup);
+
+    // Cute animated pedestrians & cyclists!
+    this.peopleManager = new PeopleManager(this.scene);
+  }
+
+  initLabels() {
+    this.labelObjects = [];
+
+    // 1. Main Island Badges (Black pills pinned to edge)
+    const islandBadges = [
+      { id: "dev", num: "01", text: "開發", pos: new THREE.Vector3(-8.6, 1.3, 8.8) },
+      { id: "zen", num: "02", text: "藝境", pos: new THREE.Vector3(8.6, 1.3, 8.8) },
+      { id: "beacon", num: "03", text: "燈塔", pos: new THREE.Vector3(0, 1.3, -4.7) }
+    ];
+
+    islandBadges.forEach(b => {
+      const div = document.createElement('div');
+      div.className = 'island-main-badge';
+      div.innerHTML = `<strong>${b.num}</strong><span>${b.text}</span>`;
+      div.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.focusIsland(b.id);
+        if (this.onSelectObject) this.onSelectObject({ id: b.id, name: b.text });
+      });
+
+      const labelObj = new CSS2DObject(div);
+      labelObj.position.copy(b.pos);
+      this.scene.add(labelObj);
+      this.labelObjects.push({ element: div, id: b.id });
+    });
+
+    // 2. Compact Circular Point Pins (①, ②, ③)
+    const pointPins = [
+      // Dev Island
+      { id: "unisnap", num: "1", text: "UniSnap 基地", pos: new THREE.Vector3(-11.4, 3.4, 3.4) },
+      { id: "windows-media-downloader", num: "2", text: "Rust 工具樓", pos: new THREE.Vector3(-6.0, 4.4, 3.2) },
+      { id: "freeway-milestone-query", num: "3", text: "國道里程樁", pos: new THREE.Vector3(-5.8, 2.4, 0.2) },
+      
+      // Zen Island
+      { id: "tea-ceremony", num: "1", text: "靜水茶席亭", pos: new THREE.Vector3(7.2, 3.6, 0.8) },
+      { id: "art-maker", num: "2", text: "創客實體工坊", pos: new THREE.Vector3(11.0, 3.4, 3.2) },
+      { id: "photography", num: "3", text: "光影觀景台", pos: new THREE.Vector3(8.2, 2.2, 4.4) },
+      { id: "ai-research", num: "4", text: "AI 核心矩陣", pos: new THREE.Vector3(10.4, 2.1, 0.2) },
+
+      // Beacon Island
+      { id: "beacon", num: "1", text: "社交燈塔", pos: new THREE.Vector3(0, 8.2, -11.5) }
+    ];
+
+    pointPins.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'pin-badge';
+      div.innerHTML = `<span class="pin-num">${p.num}</span><span>${p.text}</span>`;
+      div.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.focusOnCoordinate(p.pos, p.id);
+        if (this.onSelectObject) this.onSelectObject({ id: p.id, name: p.text });
+      });
+
+      const labelObj = new CSS2DObject(div);
+      labelObj.position.copy(p.pos);
+      this.scene.add(labelObj);
+      this.labelObjects.push({ element: div, id: p.id });
+    });
   }
 
   initInteraction() {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
-    this.hoveredObject = null;
 
     const dom = this.renderer.domElement;
     dom.addEventListener('pointermove', this.onPointerMove.bind(this));
@@ -88,7 +160,6 @@ export class AppScene {
   }
 
   onPointerDown(e) {
-    // Only trigger if left click and not dragging
     if (e.button !== 0) return;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
@@ -108,25 +179,34 @@ export class AppScene {
     }
   }
 
-  // Smooth focus on an island or landmark
   focusOnObject(object) {
     const worldPos = new THREE.Vector3();
     object.getWorldPosition(worldPos);
+    this.focusOnCoordinate(worldPos, object.userData.id);
+  }
 
-    // Calculate nice camera offset based on object type
-    let offset = new THREE.Vector3(0, 14, 20);
-    if (object.userData.id === "dev") {
-      offset = new THREE.Vector3(-4, 16, 24);
-    } else if (object.userData.id === "zen") {
-      offset = new THREE.Vector3(12, 16, 24);
-    } else if (object.userData.id === "beacon") {
-      offset = new THREE.Vector3(0, 20, 20);
+  focusOnCoordinate(worldPos, id) {
+    let offset = new THREE.Vector3(0, 11, 16);
+    if (id === "dev" || id === "unisnap") {
+      offset = new THREE.Vector3(-1.5, 11, 16);
+    } else if (id === "zen" || id === "tea-ceremony" || id === "art-maker") {
+      offset = new THREE.Vector3(2, 11, 16);
+    } else if (id === "beacon") {
+      offset = new THREE.Vector3(0, 13, 14);
     }
 
     this.animateCameraTo(
       new THREE.Vector3().addVectors(worldPos, offset),
       worldPos
     );
+
+    this.highlightLabel(id);
+  }
+
+  highlightLabel(id) {
+    this.labelObjects.forEach(l => {
+      l.element.classList.toggle('selected', l.id === id);
+    });
   }
 
   animateCameraTo(targetPos, targetLookAt) {
@@ -137,24 +217,26 @@ export class AppScene {
 
   resetToOverview() {
     this.animateCameraTo(this.overviewPos, this.overviewTarget);
+    this.highlightLabel(null);
   }
 
   setBirdEyeView() {
-    this.animateCameraTo(new THREE.Vector3(0, 75, 4), new THREE.Vector3(0, 0, 0));
+    this.animateCameraTo(new THREE.Vector3(0, 46, 2), new THREE.Vector3(0, 1.2, -1.5));
+    this.highlightLabel(null);
   }
 
   focusIsland(islandId) {
     if (islandId === "overview") {
       this.resetToOverview();
-      return;
-    }
-
-    if (islandId === "dev") {
-      this.animateCameraTo(new THREE.Vector3(-18, 20, 18), new THREE.Vector3(-16, 3, -2));
+    } else if (islandId === "dev") {
+      this.animateCameraTo(new THREE.Vector3(-8.6, 12, 16), new THREE.Vector3(-8.6, 1.2, 2.0));
+      this.highlightLabel("dev");
     } else if (islandId === "zen") {
-      this.animateCameraTo(new THREE.Vector3(16, 18, 25), new THREE.Vector3(15, 2, 6));
+      this.animateCameraTo(new THREE.Vector3(8.6, 12, 16), new THREE.Vector3(8.6, 1.2, 2.0));
+      this.highlightLabel("zen");
     } else if (islandId === "beacon") {
-      this.animateCameraTo(new THREE.Vector3(-2, 22, -2), new THREE.Vector3(-2, 8, -20));
+      this.animateCameraTo(new THREE.Vector3(0, 14, 2), new THREE.Vector3(0, 2.8, -11.5));
+      this.highlightLabel("beacon");
     }
   }
 
@@ -164,6 +246,7 @@ export class AppScene {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+    this.labelRenderer.setSize(width, height);
   }
 
   animate() {
@@ -172,14 +255,18 @@ export class AppScene {
     const delta = 0.016;
     const timeSec = performance.now() * 0.001;
 
-    // Update animations
+    // Update island world & lighting
     this.islandBuilder.update(timeSec);
     this.dayNight.update(delta);
 
-    // Smooth camera transition if active
+    // Update walking characters and cyclists!
+    if (this.peopleManager) {
+      this.peopleManager.update(delta);
+    }
+
     if (this.isCameraAnimating && this.targetCameraPos && this.targetControlsTarget) {
-      this.camera.position.lerp(this.targetCameraPos, 0.05);
-      this.controls.target.lerp(this.targetControlsTarget, 0.05);
+      this.camera.position.lerp(this.targetCameraPos, 0.06);
+      this.controls.target.lerp(this.targetControlsTarget, 0.06);
 
       if (
         this.camera.position.distanceTo(this.targetCameraPos) < 0.2 &&
@@ -191,5 +278,6 @@ export class AppScene {
 
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
+    this.labelRenderer.render(this.scene, this.camera);
   }
 }
