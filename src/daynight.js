@@ -16,9 +16,10 @@ const KEYS = [
 ];
 
 export class DayNightSystem {
-  constructor(scene, renderer) {
+  constructor(scene, renderer, isMobile = false) {
     this.scene = scene;
     this.renderer = renderer;
+    this.isMobile = isMobile;
 
     this.timeMinutes = 720; // Default: Day (12:00)
     this.targetMinutes = 720;
@@ -31,10 +32,9 @@ export class DayNightSystem {
   }
 
   setupEnvironment() {
-    // Fog
     this.scene.fog = new THREE.Fog(0xf4eee3, 30, 140);
 
-    // Sky Dome Shader
+    // Sky Dome Shader with mobile-safe precision
     this.skyUniforms = {
       uTop: { value: new THREE.Color() },
       uHorizon: { value: new THREE.Color() },
@@ -56,6 +56,7 @@ export class DayNightSystem {
         }
       `,
       fragmentShader: `
+        precision highp float;
         uniform vec3 uTop, uHorizon, uSun, uSunDir;
         uniform float uNight;
         varying vec3 vDir;
@@ -71,7 +72,7 @@ export class DayNightSystem {
           col += uSun * pow(sd, 16.0) * 0.35 * (1.0 - uNight * 0.6);
 
           // Stars at night
-          vec3 cell = floor(vDir * 180.0);
+          vec3 cell = floor(vDir * 160.0);
           float star = step(0.9965, hash(cell)) * smoothstep(0.08, 0.5, h) * uNight;
           col += vec3(star * 0.9);
 
@@ -80,11 +81,11 @@ export class DayNightSystem {
       `
     });
 
-    const skyGeo = new THREE.SphereGeometry(180, 32, 16);
+    const skyGeo = new THREE.SphereGeometry(180, 24, 16);
     this.skyMesh = new THREE.Mesh(skyGeo, skyMat);
     this.scene.add(this.skyMesh);
 
-    // Stylized Water Shader
+    // Stylized Water Shader (100% mobile safe without fwidth)
     this.waterUniforms = {
       uColor: { value: new THREE.Color(0xa4d4da) },
       uDeep: { value: new THREE.Color(0x6fa9b8) },
@@ -110,6 +111,7 @@ export class DayNightSystem {
       `,
       fragmentShader: `
         #include <fog_pars_fragment>
+        precision highp float;
         uniform vec3 uColor, uDeep;
         uniform float uTime, uNight;
         varying vec3 vW;
@@ -118,7 +120,9 @@ export class DayNightSystem {
           float d = length(vW.xz);
           float w1 = sin(vW.x * 0.35 + uTime * 0.35 + sin(vW.z * 0.27)) * sin(vW.z * 0.31 - uTime * 0.28);
           float w2 = sin((vW.x * 0.6 + vW.z) * 1.1 + uTime * 0.7) * sin(vW.x * 0.9 - vW.z * 0.4);
-          float aa = clamp(1.0 - fwidth(w2) * 3.0, 0.0, 1.0);
+
+          // Mobile-safe smooth antialiasing without relying on fwidth
+          float aa = clamp(1.0 - abs(w2) * 1.2, 0.0, 1.0);
 
           vec3 col = mix(uColor, uDeep, smoothstep(8.0, 45.0, d) * 0.5);
           col += w1 * 0.016 + w2 * 0.005 * aa;
@@ -133,14 +137,13 @@ export class DayNightSystem {
       `
     });
 
-    const waterGeo = new THREE.CircleGeometry(160, 64);
+    const waterGeo = new THREE.CircleGeometry(160, 48);
     waterGeo.rotateX(-Math.PI / 2);
     this.waterMesh = new THREE.Mesh(waterGeo, waterMat);
     this.waterMesh.position.y = -0.2;
     this.waterMesh.receiveShadow = false;
     this.scene.add(this.waterMesh);
 
-    // Distant Basin Mountains
     this.createDistantHills();
   }
 
@@ -172,26 +175,26 @@ export class DayNightSystem {
   }
 
   setupLights() {
-    // Ambient / Hemisphere light
     this.hemiLight = new THREE.HemisphereLight(0xeef6fa, 0x8f8270, 1.35);
     this.scene.add(this.hemiLight);
 
-    // Directional Sun / Celestial light
     this.sunLight = new THREE.DirectionalLight(0xfff1de, 2.8);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.set(2048, 2048);
-    this.sunLight.shadow.camera.left = -28;
-    this.sunLight.shadow.camera.right = 28;
-    this.sunLight.shadow.camera.top = 28;
-    this.sunLight.shadow.camera.bottom = -28;
+    
+    // Scale shadow map size down on mobile to prevent GPU OOM crashes
+    const sm = this.isMobile ? 1024 : 2048;
+    this.sunLight.shadow.mapSize.set(sm, sm);
+    this.sunLight.shadow.camera.left = -26;
+    this.sunLight.shadow.camera.right = 26;
+    this.sunLight.shadow.camera.top = 26;
+    this.sunLight.shadow.camera.bottom = -26;
     this.sunLight.shadow.camera.near = 1;
-    this.sunLight.shadow.camera.far = 120;
+    this.sunLight.shadow.camera.far = 110;
     this.sunLight.shadow.bias = -0.0006;
     this.sunLight.shadow.normalBias = 0.045;
-    this.sunLight.shadow.radius = 3;
+    this.sunLight.shadow.radius = this.isMobile ? 1.5 : 3;
     this.scene.add(this.sunLight);
 
-    // Soft fill light
     this.fillLight = new THREE.DirectionalLight(0xbfd6ff, 0.4);
     this.fillLight.position.set(25, 20, -25);
     this.scene.add(this.fillLight);
@@ -208,7 +211,6 @@ export class DayNightSystem {
   applyKeyframes(minutes) {
     const m = ((minutes % 1440) + 1440) % 1440;
 
-    // Find surrounding keyframes
     let k0 = KEYS[0], k1 = KEYS[KEYS.length - 1];
     for (let i = 0; i < KEYS.length - 1; i++) {
       if (m >= KEYS[i][0] && m <= KEYS[i + 1][0]) {
@@ -221,7 +223,6 @@ export class DayNightSystem {
     const span = k1[0] - k0[0] || 1;
     const t = (m - k0[0]) / span;
 
-    // Interpolate colors
     const skyTop = new THREE.Color(k0[1]).lerp(new THREE.Color(k1[1]), t);
     const horizon = new THREE.Color(k0[2]).lerp(new THREE.Color(k1[2]), t);
     const sunColor = new THREE.Color(k0[3]).lerp(new THREE.Color(k1[3]), t);
@@ -232,7 +233,6 @@ export class DayNightSystem {
     const night = THREE.MathUtils.lerp(k0[8], k1[8], t);
     const waterColor = new THREE.Color(k0[9]).lerp(new THREE.Color(k1[9]), t);
 
-    // Sun trajectory
     const progress = m / 1440;
     const angle = progress * Math.PI * 2 - Math.PI / 2;
     const radius = 60;
@@ -248,14 +248,12 @@ export class DayNightSystem {
     this.hemiLight.groundColor.copy(hemiGround);
     this.hemiLight.intensity = hemiIntensity;
 
-    // Sky Shader uniforms
     this.skyUniforms.uTop.value.copy(skyTop);
     this.skyUniforms.uHorizon.value.copy(horizon);
     this.skyUniforms.uSun.value.copy(sunColor);
     this.skyUniforms.uSunDir.value.copy(this.sunLight.position).normalize();
     this.skyUniforms.uNight.value = night;
 
-    // Fog & Water
     this.scene.fog.color.copy(horizon);
     this.waterUniforms.uColor.value.copy(waterColor);
     this.waterUniforms.uNight.value = night;

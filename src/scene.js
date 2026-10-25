@@ -10,6 +10,8 @@ export class AppScene {
     this.container = canvasContainer;
     this.onSelectObject = onSelectObject;
 
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
     this.initThree();
     this.initWorld();
     this.initLabels();
@@ -22,10 +24,11 @@ export class AppScene {
   initThree() {
     this.scene = new THREE.Scene();
 
-    // Telephoto miniature FOV (32 deg) matching HEART policy island
+    // Telephoto miniature FOV (32 deg default, 42 deg for mobile portrait)
     const aspect = this.container.clientWidth / this.container.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(32, aspect, 0.5, 350);
-    this.overviewPos = new THREE.Vector3(0, 24, 34);
+    const fov = aspect < 1.0 ? 42 : 32;
+    this.camera = new THREE.PerspectiveCamera(fov, aspect, 0.5, 350);
+    this.overviewPos = aspect < 1.0 ? new THREE.Vector3(0, 32, 44) : new THREE.Vector3(0, 24, 34);
     this.overviewTarget = new THREE.Vector3(0, 1.2, -1.5);
     this.camera.position.copy(this.overviewPos);
 
@@ -36,28 +39,34 @@ export class AppScene {
       powerPreference: 'high-performance'
     });
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.isMobile ? 1.5 : 1.75));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
+    this.renderer.domElement.style.touchAction = 'none';
     this.container.appendChild(this.renderer.domElement);
 
     // CSS2D Label Renderer
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.setSize(this.container.clientWidth, this.container.clientHeight);
     this.labelRenderer.domElement.id = 'labels';
+    this.labelRenderer.domElement.style.touchAction = 'none';
     this.container.appendChild(this.labelRenderer.domElement);
 
-    // Orbit Controls
+    // Orbit Controls with touch support
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.07;
-    this.controls.minPolarAngle = THREE.MathUtils.degToRad(25);
-    this.controls.maxPolarAngle = THREE.MathUtils.degToRad(72);
-    this.controls.minDistance = 10;
-    this.controls.maxDistance = 60;
+    this.controls.dampingFactor = 0.08;
+    this.controls.minPolarAngle = THREE.MathUtils.degToRad(20);
+    this.controls.maxPolarAngle = THREE.MathUtils.degToRad(75);
+    this.controls.minDistance = 8;
+    this.controls.maxDistance = 75;
+    this.controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,
+      TWO: THREE.TOUCH.DOLLY_PAN
+    };
     this.controls.target.copy(this.overviewTarget);
 
     this.targetCameraPos = null;
@@ -66,7 +75,7 @@ export class AppScene {
   }
 
   initWorld() {
-    this.dayNight = new DayNightSystem(this.scene, this.renderer);
+    this.dayNight = new DayNightSystem(this.scene, this.renderer, this.isMobile);
     this.islandBuilder = new IslandBuilder(this.scene);
     this.worldGroup = this.islandBuilder.buildWorld();
     this.scene.add(this.worldGroup);
@@ -140,28 +149,48 @@ export class AppScene {
     this.mouse = new THREE.Vector2();
 
     const dom = this.renderer.domElement;
-    dom.addEventListener('pointermove', this.onPointerMove.bind(this));
-    dom.addEventListener('pointerdown', this.onPointerDown.bind(this));
+    this.pointerStartPos = { x: 0, y: 0 };
+    this.pointerStartTime = 0;
+
+    dom.addEventListener('pointerdown', (e) => {
+      this.pointerStartPos.x = e.clientX;
+      this.pointerStartPos.y = e.clientY;
+      this.pointerStartTime = performance.now();
+      this.updateMousePos(e);
+    });
+
+    dom.addEventListener('pointermove', (e) => {
+      this.updateMousePos(e);
+      if (e.pointerType === 'mouse') {
+        this.checkHover();
+      }
+    });
+
+    dom.addEventListener('pointerup', (e) => {
+      const dist = Math.hypot(e.clientX - this.pointerStartPos.x, e.clientY - this.pointerStartPos.y);
+      const elapsed = performance.now() - this.pointerStartTime;
+
+      // Only trigger click/tap if finger or mouse barely moved (tap vs drag)
+      if (dist < 10 && elapsed < 400) {
+        this.updateMousePos(e);
+        this.handleTapOrClick();
+      }
+    });
   }
 
-  onPointerMove(e) {
+  updateMousePos(e) {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.islandBuilder.interactiveObjects, true);
-
-    if (intersects.length > 0) {
-      this.container.style.cursor = 'pointer';
-    } else {
-      this.container.style.cursor = 'default';
-    }
   }
 
-  onPointerDown(e) {
-    if (e.button !== 0) return;
+  checkHover() {
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.islandBuilder.interactiveObjects, true);
+    this.container.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
+  }
 
+  handleTapOrClick() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.islandBuilder.interactiveObjects, true);
 
@@ -243,7 +272,9 @@ export class AppScene {
   onResize() {
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
-    this.camera.aspect = width / height;
+    const aspect = width / height;
+    this.camera.aspect = aspect;
+    this.camera.fov = aspect < 1.0 ? 42 : 32;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
     this.labelRenderer.setSize(width, height);
