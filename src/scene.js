@@ -25,7 +25,9 @@ export class AppScene {
     this.scene = new THREE.Scene();
 
     // Telephoto miniature FOV (32 deg default, 42 deg for mobile portrait)
-    const aspect = this.container.clientWidth / this.container.clientHeight;
+    const width = this.container.clientWidth || window.innerWidth || 800;
+    const height = this.container.clientHeight || window.innerHeight || 600;
+    const aspect = width / height;
     const fov = aspect < 1.0 ? 42 : 32;
     this.camera = new THREE.PerspectiveCamera(fov, aspect, 0.5, 350);
     this.overviewPos = aspect < 1.0 ? new THREE.Vector3(0, 32, 44) : new THREE.Vector3(0, 24, 34);
@@ -270,8 +272,8 @@ export class AppScene {
   }
 
   onResize() {
-    const width = this.container.clientWidth;
-    const height = this.container.clientHeight;
+    const width = this.container.clientWidth || window.innerWidth || 800;
+    const height = this.container.clientHeight || window.innerHeight || 600;
     const aspect = width / height;
     this.camera.aspect = aspect;
     this.camera.fov = aspect < 1.0 ? 42 : 32;

@@ -1,7 +1,7 @@
 import { AppScene } from './scene.js';
 import { UIManager } from './ui.js';
 
-window.addEventListener('DOMContentLoaded', () => {
+function startApp() {
   const stage = document.getElementById('stage');
   const loading = document.getElementById('loading');
 
@@ -24,8 +24,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     uiManager = new UIManager(appScene);
 
-    // Smoothly hide loading spinner once everything is ready
-    setTimeout(dismissLoading, 400);
+    // Smoothly hide loading spinner once ready
+    setTimeout(dismissLoading, 300);
   } catch (err) {
     console.error('Failed to initialize 3D scene:', err);
     if (loading) {
@@ -37,4 +37,10 @@ window.addEventListener('DOMContentLoaded', () => {
       setTimeout(dismissLoading, 2500);
     }
   }
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startApp);
+} else {
+  startApp();
+}
